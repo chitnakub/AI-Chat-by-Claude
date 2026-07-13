@@ -1,0 +1,414 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Portkey Chat — Vertex AI</title>
+<style>
+  :root {
+    --bg: #0e1117;
+    --panel: #161b22;
+    --panel-2: #1c2330;
+    --border: #2a3441;
+    --text: #e6edf3;
+    --muted: #8b949e;
+    --accent: #4f8cff;
+    --accent-2: #7c3aed;
+    --user-bubble: #1f6feb33;
+    --ok: #3fb950;
+    --radius: 12px;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; height: 100vh; display: flex;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    background: var(--bg); color: var(--text);
+  }
+  /* ---- Sidebar ---- */
+  aside {
+    width: 320px; flex-shrink: 0; background: var(--panel);
+    border-right: 1px solid var(--border); padding: 20px;
+    display: flex; flex-direction: column; gap: 18px; overflow-y: auto;
+  }
+  aside h1 { font-size: 16px; margin: 0 0 2px; letter-spacing: .3px; }
+  aside .sub { font-size: 12px; color: var(--muted); margin-bottom: 6px; }
+  .field { display: flex; flex-direction: column; gap: 6px; }
+  .field label { font-size: 12px; color: var(--muted); font-weight: 600; text-transform: uppercase; letter-spacing: .5px; }
+  .field input {
+    background: var(--panel-2); border: 1px solid var(--border); color: var(--text);
+    border-radius: 8px; padding: 9px 11px; font-size: 14px; outline: none;
+  }
+  .field input:focus { border-color: var(--accent); }
+  /* user toggle */
+  .toggle { display: flex; background: var(--panel-2); border: 1px solid var(--border); border-radius: 8px; padding: 4px; gap: 4px; }
+  .toggle button {
+    flex: 1; border: 0; background: transparent; color: var(--muted);
+    padding: 8px; border-radius: 6px; cursor: pointer; font-size: 14px; font-weight: 600;
+  }
+  .toggle button.active { background: var(--accent); color: #fff; }
+  /* header preview */
+  .preview { background: #0b0e14; border: 1px solid var(--border); border-radius: 8px; padding: 10px; }
+  .preview .k { color: var(--accent); }
+  .preview pre { margin: 0; font-size: 11px; line-height: 1.5; white-space: pre-wrap; word-break: break-word; color: var(--muted); font-family: "SF Mono", ui-monospace, Menlo, monospace; }
+  .spacer { flex: 1; }
+  .clearbtn { background: transparent; border: 1px solid var(--border); color: var(--muted); border-radius: 8px; padding: 9px; cursor: pointer; font-size: 13px; }
+  .clearbtn:hover { color: var(--text); border-color: var(--accent); }
+
+  /* ---- Chat area ---- */
+  main { flex: 1; display: flex; flex-direction: column; min-width: 0; }
+  #messages { flex: 1; overflow-y: auto; padding: 28px 0; }
+  .msg-row { max-width: 820px; margin: 0 auto 22px; padding: 0 24px; display: flex; gap: 14px; }
+  .avatar { width: 30px; height: 30px; border-radius: 7px; flex-shrink: 0; display: grid; place-items: center; font-size: 13px; font-weight: 700; }
+  .avatar.user { background: var(--accent); color: #fff; }
+  .avatar.assistant { background: linear-gradient(135deg, var(--accent-2), var(--accent)); color: #fff; }
+  .bubble { padding-top: 3px; line-height: 1.65; font-size: 15px; white-space: pre-wrap; word-wrap: break-word; min-width: 0; }
+  .bubble .who { font-size: 12px; color: var(--muted); font-weight: 600; margin-bottom: 3px; }
+  .bubble .who .tag { color: var(--accent); }
+  .empty { text-align: center; color: var(--muted); margin-top: 15vh; }
+  .empty h2 { color: var(--text); font-weight: 600; }
+
+  /* ---- Composer ---- */
+  .composer { border-top: 1px solid var(--border); padding: 16px 24px 22px; background: var(--panel); }
+  .composer-inner { max-width: 820px; margin: 0 auto; display: flex; gap: 10px; align-items: flex-end; }
+  textarea {
+    flex: 1; resize: none; background: var(--panel-2); border: 1px solid var(--border);
+    color: var(--text); border-radius: var(--radius); padding: 13px 15px; font-size: 15px;
+    font-family: inherit; outline: none; max-height: 200px; line-height: 1.5;
+  }
+  textarea:focus { border-color: var(--accent); }
+  .send { background: var(--accent); border: 0; color: #fff; border-radius: var(--radius); padding: 0 20px; height: 46px; font-size: 15px; font-weight: 600; cursor: pointer; }
+  .send:disabled { opacity: .5; cursor: not-allowed; }
+  .hint { max-width: 820px; margin: 8px auto 0; font-size: 11px; color: var(--muted); }
+  .err { color: #f85149; }
+  /* ---- Guardrail block card ---- */
+  .blocked { border: 1px solid #f8514955; background: #f851490f; border-radius: 10px; padding: 14px 16px; margin-top: 2px; max-width: 640px; }
+  .blocked-title { display: flex; align-items: center; gap: 8px; font-weight: 700; color: #f85149; font-size: 14px; }
+  .blocked-body { margin: 8px 0 10px; font-size: 14px; line-height: 1.55; color: var(--text); }
+  .chips { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 10px; }
+  .chip { background: #f8514922; border: 1px solid #f8514955; color: #ffb4ae; border-radius: 999px; padding: 3px 10px; font-size: 12px; font-weight: 600; }
+  .blocked-meta { font-size: 12px; color: var(--muted); line-height: 1.7; }
+  .blocked-meta code { color: var(--text); background: var(--panel-2); padding: 1px 5px; border-radius: 4px; font-size: 11px; }
+  .blocked details { margin-top: 10px; }
+  .blocked summary { cursor: pointer; color: var(--muted); font-size: 12px; }
+  .blocked details pre { margin: 8px 0 0; max-height: 260px; overflow: auto; background: #0b0e14; border: 1px solid var(--border); border-radius: 8px; padding: 10px; font-size: 11px; line-height: 1.5; white-space: pre-wrap; word-break: break-word; color: var(--muted); font-family: "SF Mono", ui-monospace, Menlo, monospace; }
+  .cursor::after { content: "▍"; color: var(--accent); animation: blink 1s steps(2) infinite; }
+  @keyframes blink { 0%,50% { opacity: 1 } 50.1%,100% { opacity: 0 } }
+</style>
+</head>
+<body>
+  <aside>
+    <div>
+      <h1>Portkey Chat</h1>
+      <div class="sub">Vertex AI via Portkey gateway</div>
+    </div>
+
+    <div class="field">
+      <label>_user (metadata)</label>
+      <div class="toggle" id="userToggle">
+        <button data-user="NOTE" class="active">NOTE</button>
+        <button data-user="ETON">ETON</button>
+      </div>
+    </div>
+
+    <div class="field">
+      <label for="app">app</label>
+      <input id="app" value="AI-Chat" />
+    </div>
+
+    <div class="field">
+      <label for="env">env</label>
+      <input id="env" value="GCP-Dev" />
+    </div>
+
+    <div class="field">
+      <label for="config">x-portkey-config</label>
+      <input id="config" placeholder="config slug e.g. pc-vertex-xxxx" />
+    </div>
+
+    <div class="field">
+      <label for="model">model</label>
+      <input id="model" placeholder="gemini-2.0-flash" />
+    </div>
+
+    <div class="field">
+      <label>outgoing headers</label>
+      <div class="preview">
+        <pre id="preview"></pre>
+      </div>
+    </div>
+
+    <div class="spacer"></div>
+    <button class="clearbtn" id="clearBtn">Clear conversation</button>
+  </aside>
+
+  <main>
+    <div id="messages">
+      <div class="empty" id="empty">
+        <h2>Start chatting</h2>
+        <p>Pick a user, set your config, and send a message.</p>
+      </div>
+    </div>
+    <div class="composer">
+      <div class="composer-inner">
+        <textarea id="input" rows="1" placeholder="Message the model…  (Enter to send, Shift+Enter for newline)"></textarea>
+        <button class="send" id="send">Send</button>
+      </div>
+      <div class="hint" id="hint"></div>
+    </div>
+  </main>
+
+<script>
+  const $ = (id) => document.getElementById(id);
+  let currentUser = 'NOTE';
+  const history = []; // {role, content}
+
+  // ---- pull non-secret defaults from server ----
+  fetch('/api/defaults').then(r => r.json()).then(d => {
+    if (!$('model').value) $('model').value = d.defaultModel || '';
+    if (!$('config').value && d.defaultConfig) $('config').value = d.defaultConfig;
+    updatePreview();
+  }).catch(() => updatePreview());
+
+  // ---- user toggle ----
+  $('userToggle').addEventListener('click', (e) => {
+    const btn = e.target.closest('button');
+    if (!btn) return;
+    currentUser = btn.dataset.user;
+    [...$('userToggle').children].forEach(b => b.classList.toggle('active', b === btn));
+    updatePreview();
+  });
+
+  ['app', 'env', 'config', 'model'].forEach(id => $(id).addEventListener('input', updatePreview));
+
+  function buildMetadata() {
+    const m = { _user: currentUser };
+    if ($('app').value.trim()) m.app = $('app').value.trim();
+    if ($('env').value.trim()) m.env = $('env').value.trim();
+    return m;
+  }
+
+  function updatePreview() {
+    const cfg = $('config').value.trim();
+    const lines = [];
+    lines.push('x-portkey-metadata:');
+    lines.push('  ' + JSON.stringify(buildMetadata()));
+    lines.push('x-portkey-config:');
+    lines.push('  ' + (cfg || '(server default)'));
+    lines.push('model: ' + ($('model').value.trim() || '(server default)'));
+    $('preview').textContent = lines.join('\n');
+  }
+
+  // ---- textarea autosize ----
+  const input = $('input');
+  input.addEventListener('input', () => {
+    input.style.height = 'auto';
+    input.style.height = Math.min(input.scrollHeight, 200) + 'px';
+  });
+  input.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); }
+  });
+  $('send').addEventListener('click', sendMessage);
+  $('clearBtn').addEventListener('click', () => {
+    history.length = 0;
+    $('messages').innerHTML = '<div class="empty" id="empty"><h2>Start chatting</h2><p>Pick a user, set your config, and send a message.</p></div>';
+  });
+
+  function addMessage(role, text, meta) {
+    $('empty')?.remove();
+    const row = document.createElement('div');
+    row.className = 'msg-row';
+    const who = role === 'user'
+      ? `You <span class="tag">· _user: ${meta?._user ?? currentUser}</span>`
+      : 'Assistant';
+    row.innerHTML = `
+      <div class="avatar ${role}">${role === 'user' ? 'U' : 'AI'}</div>
+      <div class="bubble"><div class="who">${who}</div><div class="content"></div></div>`;
+    row.querySelector('.content').textContent = text;
+    $('messages').appendChild(row);
+    $('messages').scrollTop = $('messages').scrollHeight;
+    return row.querySelector('.content');
+  }
+
+  // ---- Guardrail / hook-failure parsing ----
+  // Human labels for Portkey/Prisma AIRS detection flags.
+  const CATEGORY_LABELS = {
+    dlp: 'Sensitive data (DLP)',
+    injection: 'Prompt injection',
+    malicious_code: 'Malicious code',
+    source_code: 'Source code',
+    topic_violation: 'Topic violation',
+    toxic_content: 'Toxic content',
+    url_cats: 'Malicious URL',
+    agent: 'Agent policy',
+    malicious: 'Malicious content',
+  };
+
+  function vendorFromId(id = '') {
+    const s = id.toLowerCase();
+    if (s.includes('panw') || s.includes('prisma') || s.includes('airs')) return 'Palo Alto Networks Prisma AIRS';
+    if (!id) return 'the security guardrail';
+    return id; // fall back to the raw guardrail id for other vendors
+  }
+
+  // Returns a structured block info object, or null if this isn't a guardrail block.
+  function parseGuardrail(rawText) {
+    let outer;
+    try { outer = JSON.parse(rawText); } catch { return null; }
+    let inner = outer.detail ?? outer;
+    if (typeof inner === 'string') { try { inner = JSON.parse(inner); } catch { return null; } }
+
+    const hr = inner?.hook_results;
+    if (!hr) return null;
+
+    const before = hr.before_request_hooks || [];
+    const after = hr.after_request_hooks || [];
+    const failedAfter = after.some(h => h.verdict === false);
+    const failedBefore = before.some(h => h.verdict === false);
+    const side = (!failedBefore && failedAfter) ? 'response' : 'prompt';
+
+    const info = { side, categories: [], vendor: 'the security guardrail', raw: rawText };
+    for (const hook of [...before, ...after]) {
+      for (const check of (hook.checks || [])) {
+        if (check.verdict !== false && check.data?.action !== 'block') continue;
+        const d = check.data || {};
+        info.action = d.action || info.action;
+        info.profile = d.profile_name || info.profile;
+        info.reportId = d.report_id || info.reportId;
+        info.scanId = d.scan_id || info.scanId;
+        info.vendor = vendorFromId(check.id);
+        const detected = { ...(d.prompt_detected || {}), ...(d.response_detected || {}) };
+        for (const [k, v] of Object.entries(detected)) {
+          if (v === true) info.categories.push(CATEGORY_LABELS[k] || k);
+        }
+        if (d.category && !info.categories.length) info.categories.push(CATEGORY_LABELS[d.category] || d.category);
+      }
+    }
+    return info;
+  }
+
+  function renderBlocked(contentEl, info, status) {
+    contentEl.classList.remove('cursor');
+    const subject = info.side === 'response' ? "The model's response" : 'Your prompt input';
+    const msg = `${subject} violates the security policy and has been blocked by ${info.vendor}.`;
+
+    const chips = info.categories.length
+      ? `<div class="chips">${info.categories.map(c => `<span class="chip">${escapeHtml(c)}</span>`).join('')}</div>`
+      : '';
+
+    const meta = [];
+    if (info.profile) meta.push(`Profile: <code>${escapeHtml(info.profile)}</code>`);
+    if (info.reportId) meta.push(`Report ID: <code>${escapeHtml(info.reportId)}</code>`);
+    if (info.scanId) meta.push(`Scan ID: <code>${escapeHtml(info.scanId)}</code>`);
+
+    let pretty = info.raw;
+    try { pretty = JSON.stringify(JSON.parse(info.raw), null, 2); } catch {}
+
+    contentEl.innerHTML = `
+      <div class="blocked">
+        <div class="blocked-title">🛡️ Blocked by ${escapeHtml(info.vendor)}</div>
+        <div class="blocked-body">${escapeHtml(msg)}</div>
+        ${chips}
+        ${meta.length ? `<div class="blocked-meta">${meta.join(' &middot; ')}</div>` : ''}
+        <details><summary>Show raw response (HTTP ${status})</summary><pre>${escapeHtml(pretty)}</pre></details>
+      </div>`;
+  }
+
+  function escapeHtml(s) {
+    return String(s).replace(/[&<>"']/g, c => (
+      { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]
+    ));
+  }
+
+  async function sendMessage() {
+    const text = input.value.trim();
+    if (!text) return;
+
+    const metadata = buildMetadata();
+    addMessage('user', text, metadata);
+    history.push({ role: 'user', content: text });
+    input.value = '';
+    input.style.height = 'auto';
+
+    $('send').disabled = true;
+    $('hint').textContent = '';
+    const contentEl = addMessage('assistant', '');
+    contentEl.classList.add('cursor');
+    let full = '';
+
+    try {
+      const resp = await fetch('/api/chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          messages: history,
+          model: $('model').value.trim() || undefined,
+          config: $('config').value.trim() || undefined,
+          metadata,
+        }),
+      });
+
+      if (!resp.ok) {
+        const errText = await resp.text();
+        const block = parseGuardrail(errText);
+        if (block) {
+          renderBlocked(contentEl, block, resp.status);
+          // A blocked prompt would be re-sent (and re-blocked) every turn — drop it
+          // from history so the conversation can continue.
+          if (block.side === 'prompt' && history[history.length - 1]?.role === 'user') {
+            history.pop();
+          }
+        } else {
+          contentEl.classList.remove('cursor');
+          contentEl.classList.add('err');
+          contentEl.textContent = 'Error ' + resp.status + ': ' + errText;
+        }
+        $('send').disabled = false;
+        return;
+      }
+
+      const reader = resp.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = '';
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        buffer += decoder.decode(value, { stream: true });
+
+        const lines = buffer.split('\n');
+        buffer = lines.pop(); // keep partial line
+
+        for (const line of lines) {
+          const t = line.trim();
+          if (!t.startsWith('data:')) continue;
+          const data = t.slice(5).trim();
+          if (data === '[DONE]') continue;
+          try {
+            const json = JSON.parse(data);
+            const delta = json.choices?.[0]?.delta?.content;
+            if (delta) {
+              full += delta;
+              contentEl.textContent = full;
+              $('messages').scrollTop = $('messages').scrollHeight;
+            }
+          } catch { /* ignore keep-alives / partial */ }
+        }
+      }
+
+      contentEl.classList.remove('cursor');
+      if (full) history.push({ role: 'assistant', content: full });
+      else contentEl.textContent = '(no content returned)';
+    } catch (err) {
+      contentEl.classList.remove('cursor');
+      contentEl.classList.add('err');
+      contentEl.textContent = 'Request failed: ' + err;
+    } finally {
+      $('send').disabled = false;
+      input.focus();
+    }
+  }
+
+  updatePreview();
+</script>
+</body>
+</html>
