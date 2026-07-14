@@ -28,7 +28,8 @@ the response (SSE) back to the page.
 ## Setup (Docker — recommended)
 
 ```bash
-cd /Users/ptechawiset/claude/chat-ui
+git clone https://github.com/chitnakub/AI-Chat-by-Claude.git
+cd AI-Chat-by-Claude
 cp .env.example .env
 # edit .env and set PORTKEY_API_KEY (and optionally DEFAULT_PORTKEY_CONFIG / DEFAULT_MODEL)
 
