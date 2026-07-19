@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>Portkey Chat — Vertex AI</title>
+<title>AIRS-GW Chat — Vertex AI</title>
 <style>
   :root {
     --bg: #0e1117;
@@ -98,8 +98,8 @@
 <body>
   <aside>
     <div>
-      <h1>Portkey Chat</h1>
-      <div class="sub">Vertex AI via Portkey gateway</div>
+      <h1>AIRS-GW Chat</h1>
+      <div class="sub">Vertex AI via AIRS-GW gateway</div>
     </div>
 
     <div class="field">
@@ -122,7 +122,7 @@
 
     <div class="field">
       <label for="baseUrl">gateway URL</label>
-      <input id="baseUrl" placeholder="https://api.portkey.ai/v1" />
+      <input id="baseUrl" placeholder="http://your-airs-gw/v1" />
     </div>
 
     <div class="field">
@@ -237,7 +237,7 @@
   }
 
   // ---- Guardrail / hook-failure parsing ----
-  // Human labels for Portkey/Prisma AIRS detection flags.
+  // Human labels for AIRS-GW/Prisma AIRS detection flags.
   const CATEGORY_LABELS = {
     dlp: 'Sensitive data (DLP)',
     injection: 'Prompt injection',

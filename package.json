@@ -1,7 +1,7 @@
 {
-  "name": "portkey-chat-ui",
+  "name": "airs-gw-chat-ui",
   "version": "1.0.0",
-  "description": "AI chat UI calling Vertex AI via Portkey, with switchable x-portkey-metadata (_user) and x-portkey-config headers",
+  "description": "AI chat UI calling Vertex AI via AIRS-GW, with switchable x-portkey-metadata (_user) and x-portkey-config headers",
   "type": "module",
   "main": "server.js",
   "scripts": {

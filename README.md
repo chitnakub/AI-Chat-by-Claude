@@ -1,10 +1,10 @@
-# Portkey Chat UI (Vertex AI)
+# AIRS-GW Chat UI (Vertex AI)
 
-A minimal AI chat UI that calls a Vertex AI model **through your Portkey SaaS gateway**.
+A minimal AI chat UI that calls a Vertex AI model **through your AIRS-GW gateway**.
 The UI lets you switch, at runtime:
 
 - **`_user`** in `x-portkey-metadata` — toggle between `NOTE` and `ETON` (plus editable `app` / `env`).
-- **gateway URL** — free-text field for the Portkey base URL (pre-filled from `PORTKEY_BASE_URL`).
+- **gateway URL** — free-text field for the AIRS-GW base URL (pre-filled from `AIRS_GW_BASE_URL`).
 - **`x-portkey-config`** — a free-text config slug field.
 - **model** — free-text field.
 
@@ -16,14 +16,14 @@ A live panel shows the exact headers that will be sent with the next request.
 Browser (public/index.html)
    │  POST /api/chat  { messages, model, config, metadata, baseUrl }
    ▼
-Node/Express in Docker (server.js)   ← holds PORTKEY_API_KEY (never sent to the browser)
+Node/Express in Docker (server.js)   ← holds AIRS_GW_API_KEY (never sent to the browser)
    │  POST /v1/chat/completions
    │  headers: x-portkey-api-key, x-portkey-config, x-portkey-metadata
    ▼
-Portkey SaaS gateway ──► Vertex AI
+AIRS-GW gateway ──► Vertex AI
 ```
 
-The browser never sees the Portkey API key — the server injects it and streams
+The browser never sees the AIRS-GW API key — the server injects it and streams
 the response (SSE) back to the page.
 
 ## Setup (Docker — recommended)
@@ -32,7 +32,7 @@ the response (SSE) back to the page.
 git clone https://github.com/chitnakub/AI-Chat-by-Claude.git
 cd AI-Chat-by-Claude
 cp .env.example .env
-# edit .env and set PORTKEY_API_KEY (and optionally DEFAULT_PORTKEY_CONFIG / DEFAULT_MODEL)
+# edit .env and set AIRS_GW_API_KEY (and optionally DEFAULT_AIRS_GW_CONFIG / DEFAULT_MODEL)
 
 docker compose up -d --build   # start (builds on first run)
 ```
@@ -85,23 +85,23 @@ Then open http://localhost:3000
 
 | Variable                 | Purpose                                                        |
 |--------------------------|---------------------------------------------------------------|
-| `PORTKEY_API_KEY`        | Your Portkey SaaS API key. **Required.** Stays server-side.    |
-| `PORTKEY_BASE_URL`       | Gateway URL. Default `https://api.portkey.ai/v1`. Pre-fills the UI field. |
-| `ALLOWED_GATEWAY_HOSTS`  | Comma-separated allowlist of hosts the UI may target. `PORTKEY_BASE_URL` host is always allowed. Empty = allow any http(s) host. |
-| `DEFAULT_PORTKEY_CONFIG` | Config slug used when the UI config field is empty.           |
+| `AIRS_GW_API_KEY`        | Your AIRS-GW API key. **Required.** Stays server-side.         |
+| `AIRS_GW_BASE_URL`       | Gateway URL. Default `http://your-airs-gw/v1`. Pre-fills the UI field. |
+| `ALLOWED_GATEWAY_HOSTS`  | Comma-separated allowlist of hosts the UI may target. `AIRS_GW_BASE_URL` host is always allowed. Empty = allow any http(s) host. |
+| `DEFAULT_AIRS_GW_CONFIG` | Config slug used when the UI config field is empty.           |
 | `DEFAULT_MODEL`          | Model used when the UI model field is empty.                  |
 | `PORT`                   | Local server port (default 3000).                            |
 
 ## Notes
 
 - **Config vs. virtual key for Vertex:** your Vertex credentials/routing live in the
-  Portkey **config** referenced by `x-portkey-config`. Create a config in the Portkey
+  AIRS-GW **config** referenced by `x-portkey-config`. Create a config in the AIRS-GW
   dashboard that points at your Vertex provider, then paste its slug into the UI (or
-  set `DEFAULT_PORTKEY_CONFIG`).
+  set `DEFAULT_AIRS_GW_CONFIG`).
 - **Metadata** is sent as `x-portkey-metadata: {"_user":"NOTE","app":"AI-Chat","env":"GCP-Dev"}`.
-  These values show up in Portkey analytics/logs so you can filter by user.
+  These values show up in AIRS-GW analytics/logs so you can filter by user.
 - Conversation history is kept in the browser and re-sent each turn.
-- **Gateway URL override:** the UI can point the server at a different Portkey
+- **Gateway URL override:** the UI can point the server at a different AIRS-GW
   base URL per request. The API key still never leaves the server, and only
   `http(s)` URLs are accepted. Because the server (carrying your API key) will
   call whatever host the client asks for, set `ALLOWED_GATEWAY_HOSTS` to lock

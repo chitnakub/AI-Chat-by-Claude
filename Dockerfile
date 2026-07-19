@@ -1,4 +1,4 @@
-# Small, production-ish image for the Portkey chat UI.
+# Small, production-ish image for the AIRS-GW chat UI.
 FROM node:20-alpine
 
 WORKDIR /app
@@ -13,5 +13,5 @@ COPY public ./public
 
 EXPOSE 3000
 
-# PORTKEY_API_KEY etc. are provided at runtime via --env-file / compose.
+# AIRS_GW_API_KEY etc. are provided at runtime via --env-file / compose.
 CMD ["node", "server.js"]
