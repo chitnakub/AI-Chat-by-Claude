@@ -6,4 +6,9 @@ services:
       - "3000:3000"
     env_file:
       - .env
+    # Lets the container reach a gateway listening on the host's localhost
+    # (e.g. the airs-gw Kube cluster). Works out of the box on Docker Desktop;
+    # this mapping makes it work on Linux too.
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     restart: always

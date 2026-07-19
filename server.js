@@ -10,6 +10,7 @@ const {
   PORTKEY_BASE_URL = 'https://api.portkey.ai/v1',
   DEFAULT_PORTKEY_CONFIG = '',
   DEFAULT_MODEL = 'gemini-2.0-flash',
+  ALLOWED_GATEWAY_HOSTS = '',
   PORT = 3000,
 } = process.env;
 
@@ -17,6 +18,19 @@ if (!PORTKEY_API_KEY) {
   console.error('\n[fatal] PORTKEY_API_KEY is not set. Copy .env.example to .env and fill it in.\n');
   process.exit(1);
 }
+
+// Optional allowlist of hostnames a client may point the gateway URL at.
+// The server default host is always allowed. Empty = allow any http(s) host.
+const allowedHosts = new Set(
+  ALLOWED_GATEWAY_HOSTS.split(',').map((h) => h.trim().toLowerCase()).filter(Boolean)
+);
+try {
+  allowedHosts.add(new URL(PORTKEY_BASE_URL).hostname.toLowerCase());
+} catch {
+  console.error(`\n[fatal] PORTKEY_BASE_URL is not a valid URL: ${PORTKEY_BASE_URL}\n`);
+  process.exit(1);
+}
+const restrictHosts = ALLOWED_GATEWAY_HOSTS.trim().length > 0;
 
 const app = express();
 app.use(express.json({ limit: '2mb' }));
@@ -39,10 +53,33 @@ app.get('/api/defaults', (_req, res) => {
  * Streams the Portkey/OpenAI-compatible SSE response straight through.
  */
 app.post('/api/chat', async (req, res) => {
-  const { messages, model, config, metadata } = req.body || {};
+  const { messages, model, config, metadata, baseUrl } = req.body || {};
 
   if (!Array.isArray(messages) || messages.length === 0) {
     return res.status(400).json({ error: 'messages[] is required' });
+  }
+
+  // Resolve the gateway URL: per-request override falls back to the server default.
+  // Only http(s) URLs are accepted so the API key can't be sent to an odd scheme.
+  let effectiveBaseUrl = PORTKEY_BASE_URL;
+  if (typeof baseUrl === 'string' && baseUrl.trim()) {
+    let parsed;
+    try {
+      parsed = new URL(baseUrl.trim());
+    } catch {
+      return res.status(400).json({ error: `Invalid baseUrl: ${baseUrl}` });
+    }
+    if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') {
+      return res.status(400).json({ error: 'baseUrl must be an http(s) URL' });
+    }
+    if (restrictHosts && !allowedHosts.has(parsed.hostname.toLowerCase())) {
+      return res.status(400).json({
+        error: `Gateway host not allowed: ${parsed.hostname}`,
+        allowed: [...allowedHosts],
+      });
+    }
+    // Strip any trailing slash so we can safely append the path.
+    effectiveBaseUrl = parsed.toString().replace(/\/+$/, '');
   }
 
   // Build Portkey headers.
@@ -69,7 +106,7 @@ app.post('/api/chat', async (req, res) => {
   });
 
   try {
-    const upstream = await fetch(`${PORTKEY_BASE_URL}/chat/completions`, {
+    const upstream = await fetch(`${effectiveBaseUrl}/chat/completions`, {
       method: 'POST',
       headers,
       body,

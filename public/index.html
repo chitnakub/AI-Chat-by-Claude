@@ -121,6 +121,11 @@
     </div>
 
     <div class="field">
+      <label for="baseUrl">gateway URL</label>
+      <input id="baseUrl" placeholder="https://api.portkey.ai/v1" />
+    </div>
+
+    <div class="field">
       <label for="config">x-portkey-config</label>
       <input id="config" placeholder="config slug e.g. pc-vertex-xxxx" />
     </div>
@@ -166,6 +171,7 @@
   fetch('/api/defaults').then(r => r.json()).then(d => {
     if (!$('model').value) $('model').value = d.defaultModel || '';
     if (!$('config').value && d.defaultConfig) $('config').value = d.defaultConfig;
+    if (!$('baseUrl').value && d.baseUrl) $('baseUrl').value = d.baseUrl;
     updatePreview();
   }).catch(() => updatePreview());
 
@@ -178,7 +184,7 @@
     updatePreview();
   });
 
-  ['app', 'env', 'config', 'model'].forEach(id => $(id).addEventListener('input', updatePreview));
+  ['app', 'env', 'config', 'model', 'baseUrl'].forEach(id => $(id).addEventListener('input', updatePreview));
 
   function buildMetadata() {
     const m = { _user: currentUser };
@@ -195,6 +201,7 @@
     lines.push('x-portkey-config:');
     lines.push('  ' + (cfg || '(server default)'));
     lines.push('model: ' + ($('model').value.trim() || '(server default)'));
+    lines.push('gateway: ' + ($('baseUrl').value.trim() || '(server default)'));
     $('preview').textContent = lines.join('\n');
   }
 
@@ -343,6 +350,7 @@
           messages: history,
           model: $('model').value.trim() || undefined,
           config: $('config').value.trim() || undefined,
+          baseUrl: $('baseUrl').value.trim() || undefined,
           metadata,
         }),
       });

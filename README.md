@@ -4,6 +4,7 @@ A minimal AI chat UI that calls a Vertex AI model **through your Portkey SaaS ga
 The UI lets you switch, at runtime:
 
 - **`_user`** in `x-portkey-metadata` — toggle between `NOTE` and `ETON` (plus editable `app` / `env`).
+- **gateway URL** — free-text field for the Portkey base URL (pre-filled from `PORTKEY_BASE_URL`).
 - **`x-portkey-config`** — a free-text config slug field.
 - **model** — free-text field.
 
@@ -13,7 +14,7 @@ A live panel shows the exact headers that will be sent with the next request.
 
 ```
 Browser (public/index.html)
-   │  POST /api/chat  { messages, model, config, metadata }
+   │  POST /api/chat  { messages, model, config, metadata, baseUrl }
    ▼
 Node/Express in Docker (server.js)   ← holds PORTKEY_API_KEY (never sent to the browser)
    │  POST /v1/chat/completions
@@ -85,7 +86,8 @@ Then open http://localhost:3000
 | Variable                 | Purpose                                                        |
 |--------------------------|---------------------------------------------------------------|
 | `PORTKEY_API_KEY`        | Your Portkey SaaS API key. **Required.** Stays server-side.    |
-| `PORTKEY_BASE_URL`       | Gateway URL. Default `https://api.portkey.ai/v1`.             |
+| `PORTKEY_BASE_URL`       | Gateway URL. Default `https://api.portkey.ai/v1`. Pre-fills the UI field. |
+| `ALLOWED_GATEWAY_HOSTS`  | Comma-separated allowlist of hosts the UI may target. `PORTKEY_BASE_URL` host is always allowed. Empty = allow any http(s) host. |
 | `DEFAULT_PORTKEY_CONFIG` | Config slug used when the UI config field is empty.           |
 | `DEFAULT_MODEL`          | Model used when the UI model field is empty.                  |
 | `PORT`                   | Local server port (default 3000).                            |
@@ -99,3 +101,8 @@ Then open http://localhost:3000
 - **Metadata** is sent as `x-portkey-metadata: {"_user":"NOTE","app":"AI-Chat","env":"GCP-Dev"}`.
   These values show up in Portkey analytics/logs so you can filter by user.
 - Conversation history is kept in the browser and re-sent each turn.
+- **Gateway URL override:** the UI can point the server at a different Portkey
+  base URL per request. The API key still never leaves the server, and only
+  `http(s)` URLs are accepted. Because the server (carrying your API key) will
+  call whatever host the client asks for, set `ALLOWED_GATEWAY_HOSTS` to lock
+  this down if the UI is reachable by untrusted users.
